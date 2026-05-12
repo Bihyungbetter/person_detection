@@ -13,8 +13,6 @@ from PIL import Image
 from .live_backend import (
     DEFAULT_CROP,
     LiveVisionBackend,
-    extract_person_crop,
-    extract_person_crop_with_bbox,
     parse_crop,
 )
 from .registry import PatientRegistry
@@ -237,19 +235,3 @@ def _decode_data_url(value: str) -> Image.Image:
     return Image.open(BytesIO(data)).convert("RGB")
 
 
-def _extract_person_crop(
-    image: Image.Image,
-    background_path: Path,
-    guide_crop: tuple[float, float, float, float],
-    require_foreground: bool,
-) -> Image.Image:
-    return extract_person_crop(image, background_path, guide_crop, require_foreground)
-
-
-def _extract_person_crop_with_bbox(
-    image: Image.Image,
-    background_path: Path,
-    guide_crop: tuple[float, float, float, float],
-    require_foreground: bool,
-) -> tuple[Image.Image | None, tuple[float, float, float, float] | None]:
-    return extract_person_crop_with_bbox(image, background_path, guide_crop, require_foreground)

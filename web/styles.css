@@ -1,13 +1,14 @@
 :root {
   color-scheme: light;
-  --ink: #18211f;
-  --muted: #66736e;
-  --line: #cbd7d1;
-  --panel: #f7faf8;
-  --accent: #0d7f68;
-  --warn: #b83a3a;
-  --busy: #8b6f11;
-  --bg: #e8eee9;
+  --ink: #222;
+  --muted: #666;
+  --line: #222;
+  --panel: #fffef9;
+  --paper: #fdfcf7;
+  --accent: #1a6f5a;
+  --warn: #a13030;
+  --busy: #8a6d10;
+  --bg: #f3efe3;
 }
 
 * {
@@ -18,25 +19,30 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  background: var(--bg);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(circle at 12% 18%, rgb(0 0 0 / 4%), transparent 40%),
+    radial-gradient(circle at 88% 78%, rgb(0 0 0 / 4%), transparent 40%),
+    var(--bg);
+  font-family: "Patrick Hand", "Comic Sans MS", "Marker Felt", "Bradley Hand", system-ui, sans-serif;
+  font-size: 18px;
 }
 
 .shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 22px;
   min-height: 100vh;
-  padding: 18px;
+  padding: 22px;
 }
 
 .stage {
   position: relative;
   overflow: hidden;
-  min-height: calc(100vh - 36px);
+  min-height: calc(100vh - 44px);
   background: #111;
-  border: 1px solid #202927;
-  border-radius: 8px;
+  border: 3px dashed var(--ink);
+  border-radius: 18px 8px 22px 12px / 12px 22px 8px 18px;
+  transform: rotate(-0.15deg);
 }
 
 video,
@@ -50,116 +56,185 @@ video,
 
 #guide {
   position: absolute;
-  border: 3px solid var(--accent);
-  box-shadow: 0 0 0 999px rgb(0 0 0 / 18%);
+  border: 3px dashed #ffe66d;
+  border-radius: 14px 6px 18px 10px / 10px 18px 6px 14px;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 22%);
   pointer-events: none;
 }
 
 .panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 0;
-  padding: 18px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 20px;
+  background:
+    repeating-linear-gradient(
+      transparent 0,
+      transparent 27px,
+      rgb(34 34 34 / 8%) 27px,
+      rgb(34 34 34 / 8%) 28px
+    ),
+    var(--paper);
+  border: 3px dashed var(--ink);
+  border-radius: 16px 10px 22px 8px / 10px 20px 8px 16px;
+  transform: rotate(0.2deg);
 }
 
 .eyebrow {
+  display: inline-block;
   margin: 0 0 4px;
-  color: var(--muted);
-  font-size: 12px;
+  padding: 3px 10px;
+  color: var(--ink);
+  background: #ffe66d;
+  border: 2px dashed var(--ink);
+  border-radius: 8px 4px 10px 6px / 6px 10px 4px 8px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: lowercase;
+  transform: rotate(-1.5deg);
 }
 
 h1 {
   margin: 0;
-  font-size: 30px;
+  font-size: 38px;
   line-height: 1.05;
   letter-spacing: 0;
 }
 
+.stamp {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  color: var(--warn);
+  font-size: 14px;
+  border: 2px dashed var(--warn);
+  border-radius: 6px;
+  transform: rotate(-4deg);
+  vertical-align: middle;
+}
+
 .status {
-  min-height: 54px;
+  min-height: 58px;
   display: grid;
   align-items: center;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 12px 14px;
+  border: 2px dashed var(--ink);
+  border-radius: 12px 6px 14px 8px / 8px 14px 6px 12px;
   background: #fff;
   font-weight: 700;
+  font-size: 19px;
 }
 
 .status[data-state="match"] {
   color: var(--accent);
-  border-color: rgb(13 127 104 / 45%);
+  border-color: var(--accent);
+  background: #eaf6f1;
 }
 
 .status[data-state="miss"] {
   color: var(--warn);
-  border-color: rgb(184 58 58 / 45%);
+  border-color: var(--warn);
+  background: #fbeded;
 }
 
 .status[data-state="busy"] {
   color: var(--busy);
-  border-color: rgb(139 111 17 / 45%);
+  border-color: var(--busy);
+  background: #fbf5dd;
 }
 
 .score {
   display: grid;
   gap: 8px;
+  padding: 12px 14px;
+  border: 2px dashed var(--ink);
+  border-radius: 10px 14px 8px 12px / 14px 8px 12px 10px;
+  background: #fff;
 }
 
 .score span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .score strong {
-  font-size: 36px;
+  font-size: 42px;
   line-height: 1;
 }
 
 .meter {
   overflow: hidden;
-  height: 10px;
-  background: #d8e2de;
+  height: 12px;
+  background: #efe9d8;
+  border: 2px dashed var(--ink);
   border-radius: 999px;
 }
 
 #meterFill {
   width: 0;
   height: 100%;
-  background: var(--accent);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--accent) 0,
+    var(--accent) 6px,
+    #2a8a72 6px,
+    #2a8a72 12px
+  );
   transition: width 160ms ease;
 }
 
 .controls {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 button {
-  min-height: 44px;
-  border: 1px solid #9fb0aa;
-  border-radius: 8px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 2.5px dashed var(--ink);
+  border-radius: 14px 6px 16px 8px / 8px 16px 6px 14px;
   background: #fff;
   color: var(--ink);
   font: inherit;
+  font-size: 20px;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+button:nth-of-type(1) {
+  transform: rotate(-0.4deg);
+}
+
+button:nth-of-type(2) {
+  transform: rotate(0.5deg);
+}
+
+button:nth-of-type(3) {
+  transform: rotate(-0.3deg);
+}
+
+button:nth-of-type(4) {
+  transform: rotate(0.4deg);
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent);
+  background: #fff7c8;
+  transform: rotate(0deg);
+}
+
+button:active:not(:disabled) {
+  background: #ffe66d;
 }
 
 button:disabled {
-  color: #8c9994;
+  color: #aaa;
+  border-style: dotted;
+  background: #f4f1e6;
   cursor: not-allowed;
 }
 
@@ -167,6 +242,10 @@ dl {
   display: grid;
   gap: 10px;
   margin: auto 0 0;
+  padding: 14px;
+  border: 2px dashed var(--ink);
+  border-radius: 12px 8px 14px 6px / 6px 14px 8px 12px;
+  background: #fff;
 }
 
 dl div {
@@ -174,13 +253,18 @@ dl div {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgb(34 34 34 / 35%);
+}
+
+dl div:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 dt {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
@@ -188,6 +272,7 @@ dd {
   margin: 0;
   text-align: right;
   font-weight: 700;
+  font-size: 16px;
 }
 
 @media (max-width: 780px) {
@@ -199,4 +284,3 @@ dd {
     min-height: 58vh;
   }
 }
-

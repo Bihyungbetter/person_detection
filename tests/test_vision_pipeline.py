@@ -9,7 +9,7 @@ from dementia_tracker.demo_data import generate_demo_dataset
 from dementia_tracker.embeddings import AppearanceEmbedder
 from dementia_tracker.pipeline import VisionPipeline
 from dementia_tracker.registry import PatientRegistry
-from dementia_tracker.webapp import DEFAULT_CROP, _extract_person_crop_with_bbox
+from dementia_tracker.live_backend import DEFAULT_CROP, extract_person_crop_with_bbox
 from dementia_tracker.zones import load_zones, point_in_polygon
 
 
@@ -67,7 +67,7 @@ class VisionPipelineTests(unittest.TestCase):
             from PIL import Image
 
             with Image.open(person_frame) as image:
-                crop, bbox = _extract_person_crop_with_bbox(
+                crop, bbox = extract_person_crop_with_bbox(
                     image.convert("RGB"),
                     background_path,
                     DEFAULT_CROP,
@@ -79,7 +79,7 @@ class VisionPipelineTests(unittest.TestCase):
             self.assertLess(crop.size[0], 180)
 
             with Image.open(background_frame) as image:
-                crop, bbox = _extract_person_crop_with_bbox(
+                crop, bbox = extract_person_crop_with_bbox(
                     image.convert("RGB"),
                     background_path,
                     DEFAULT_CROP,
