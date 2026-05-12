@@ -4,6 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Live Patient Detector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -15,8 +18,8 @@
       </section>
       <aside class="panel">
         <div>
-          <p class="eyebrow">Local Vision Model</p>
-          <h1>Detect Me</h1>
+          <p class="eyebrow">local vision model</p>
+          <h1>Detect Me <span class="stamp">PROTOTYPE v0</span></h1>
         </div>
         <div class="status" id="status">Camera idle</div>
         <div class="score">
@@ -24,20 +27,21 @@
           <strong id="scoreValue">0.00</strong>
           <div class="meter"><div id="meterFill"></div></div>
         </div>
+        <label class="name-field">
+          <span>Patient name</span>
+          <input id="patientName" type="text" placeholder="e.g. Me" maxlength="40" autocomplete="off" />
+        </label>
         <div class="controls">
-          <button id="startButton" type="button">Start Camera</button>
-          <button id="backgroundButton" type="button" disabled>Set Empty Background</button>
-          <button id="enrollButton" type="button" disabled>Enroll Me</button>
-          <button id="detectButton" type="button" disabled>Start Detecting</button>
+          <button id="startButton" type="button">Camera</button>
+          <button id="auxButton" type="button" disabled data-mode="background">Background</button>
+          <button id="enrollButton" type="button" disabled>Enroll</button>
+          <button id="detectButton" type="button" disabled>Detect</button>
         </div>
+        <ul class="patient-list" id="patientList" aria-label="Enrolled patients"></ul>
         <dl>
           <div>
             <dt>Registry</dt>
             <dd id="registryState">Checking</dd>
-          </div>
-          <div>
-            <dt>Background</dt>
-            <dd id="backgroundState">Checking</dd>
           </div>
           <div>
             <dt>Backend</dt>

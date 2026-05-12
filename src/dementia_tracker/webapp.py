@@ -13,8 +13,6 @@ from PIL import Image
 from .live_backend import (
     DEFAULT_CROP,
     LiveVisionBackend,
-    extract_person_crop,
-    extract_person_crop_with_bbox,
     parse_crop,
 )
 from .registry import PatientRegistry
@@ -51,6 +49,10 @@ def _handler_factory(registry_path: Path, threshold: float) -> type[BaseHTTPRequ
             elif parsed.path == "/api/status":
                 registry = PatientRegistry.load(registry_path)
                 compatible_count = _compatible_patient_count(registry, self.vision.embedding_dimensions)
+                patients = [
+                    {"id": pid, "name": profile.name, "samples": profile.reference_count}
+                    for pid, profile in registry.patients.items()
+                ]
                 self._json(
                     {
                         "ready": True,
@@ -61,6 +63,7 @@ def _handler_factory(registry_path: Path, threshold: float) -> type[BaseHTTPRequ
                         "background_ready": background_path.exists(),
                         "backend": self.vision.backend_name,
                         "registry_path": str(registry_path),
+                        "patients": patients,
                     }
                 )
             else:
@@ -76,6 +79,8 @@ def _handler_factory(registry_path: Path, threshold: float) -> type[BaseHTTPRequ
                     self._enroll(payload)
                 elif parsed.path == "/api/detect":
                     self._detect(payload)
+                elif parsed.path == "/api/clear":
+                    self._clear()
                 else:
                     self.send_error(HTTPStatus.NOT_FOUND)
             except Exception as exc:
@@ -97,8 +102,13 @@ def _handler_factory(registry_path: Path, threshold: float) -> type[BaseHTTPRequ
 
         def _read_json(self) -> dict[str, object]:
             length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0:
+                return {}
             raw = self.rfile.read(length)
-            return json.loads(raw.decode("utf-8"))
+            text = raw.decode("utf-8").strip()
+            if not text:
+                return {}
+            return json.loads(text)
 
         def _enroll(self, payload: dict[str, object]) -> None:
             samples = payload.get("samples")
@@ -123,10 +133,12 @@ def _handler_factory(registry_path: Path, threshold: float) -> type[BaseHTTPRequ
                 embeddings.append(self.vision.embedding_for_crop(identity_crop))
                 modes.append(identity_crop.mode)
 
+            name = str(payload.get("name") or "Me").strip() or "Me"
+            patient_id = str(payload.get("patient_id") or _slugify(name))
             registry = PatientRegistry.load(registry_path)
             profile = registry.add_patient_from_embeddings(
-                patient_id=str(payload.get("patient_id") or "me"),
-                name=str(payload.get("name") or "Me"),
+                patient_id=patient_id,
+                name=name,
                 embeddings=embeddings,
             )
             registry.save(registry_path)
@@ -204,6 +216,16 @@ def _handler_factory(registry_path: Path, threshold: float) -> type[BaseHTTPRequ
                 }
             )
 
+        def _clear(self) -> None:
+            cleared = {"registry": False, "background": False}
+            if registry_path.exists():
+                registry_path.unlink()
+                cleared["registry"] = True
+            if background_path.exists():
+                background_path.unlink()
+                cleared["background"] = True
+            self._json({"cleared": cleared})
+
         def _set_background(self, payload: dict[str, object]) -> None:
             image_value = payload.get("image")
             if not isinstance(image_value, str):
@@ -228,6 +250,17 @@ def _compatible_patient_count(registry: PatientRegistry, dimensions: int) -> int
     return sum(1 for profile in registry.patients.values() if profile.embedding.shape == (dimensions,))
 
 
+def _slugify(value: str) -> str:
+    out = []
+    for ch in value.lower().strip():
+        if ch.isalnum():
+            out.append(ch)
+        elif ch in (" ", "-", "_"):
+            out.append("-")
+    slug = "".join(out).strip("-") or "patient"
+    return slug
+
+
 def _decode_data_url(value: str) -> Image.Image:
     if "," in value:
         _, encoded = value.split(",", 1)
@@ -237,19 +270,3 @@ def _decode_data_url(value: str) -> Image.Image:
     return Image.open(BytesIO(data)).convert("RGB")
 
 
-def _extract_person_crop(
-    image: Image.Image,
-    background_path: Path,
-    guide_crop: tuple[float, float, float, float],
-    require_foreground: bool,
-) -> Image.Image:
-    return extract_person_crop(image, background_path, guide_crop, require_foreground)
-
-
-def _extract_person_crop_with_bbox(
-    image: Image.Image,
-    background_path: Path,
-    guide_crop: tuple[float, float, float, float],
-    require_foreground: bool,
-) -> tuple[Image.Image | None, tuple[float, float, float, float] | None]:
-    return extract_person_crop_with_bbox(image, background_path, guide_crop, require_foreground)

@@ -8,19 +8,25 @@ const statusEl = document.getElementById("status");
 const scoreValue = document.getElementById("scoreValue");
 const meterFill = document.getElementById("meterFill");
 const registryState = document.getElementById("registryState");
-const backgroundState = document.getElementById("backgroundState");
 const backendState = document.getElementById("backendState");
 const thresholdState = document.getElementById("thresholdState");
+const patientList = document.getElementById("patientList");
+const patientNameInput = document.getElementById("patientName");
 const startButton = document.getElementById("startButton");
-const backgroundButton = document.getElementById("backgroundButton");
+const auxButton = document.getElementById("auxButton");
 const enrollButton = document.getElementById("enrollButton");
 const detectButton = document.getElementById("detectButton");
 
 const crop = [0.32, 0.08, 0.68, 0.96];
+const DETECTION_HOLD_MS = 600;
+const DETECTION_FADE_MS = 250;
 let threshold = 0.74;
 let stream = null;
 let detecting = false;
 let detectionTimer = null;
+let lastDetection = null;
+let lastDetectionAt = 0;
+let backendName = "";
 
 function setStatus(text, state = "idle") {
   statusEl.textContent = text;
@@ -37,7 +43,7 @@ async function api(path, body) {
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: body ? JSON.stringify(body) : "{}",
   });
   const payload = await response.json();
   if (!response.ok || payload.error) {
@@ -46,18 +52,50 @@ async function api(path, body) {
   return payload;
 }
 
+function renderPatients(patients) {
+  patientList.innerHTML = "";
+  for (const p of patients || []) {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = p.name;
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = `${p.samples} samples`;
+    li.appendChild(name);
+    li.appendChild(count);
+    patientList.appendChild(li);
+  }
+}
+
+function configureAuxButton(payload) {
+  const supportsLearned = /hog|haar/.test(payload.backend || "");
+  if (supportsLearned) {
+    auxButton.dataset.mode = "clear";
+    auxButton.textContent = "Clear";
+    auxButton.title = "Wipe registry + background";
+  } else {
+    auxButton.dataset.mode = "background";
+    auxButton.textContent = payload.background_ready ? "Background ✓" : "Background";
+    auxButton.title = "Capture empty room baseline";
+  }
+}
+
 async function refreshStatus() {
   const response = await fetch("/api/status");
   const payload = await response.json();
   threshold = payload.threshold;
+  backendName = payload.backend || "Unknown";
   if (payload.needs_reenrollment) {
     registryState.textContent = "Re-enroll";
   } else {
-    registryState.textContent = payload.compatible_patient_count ? "Enrolled" : "Empty";
+    registryState.textContent = payload.compatible_patient_count
+      ? `${payload.compatible_patient_count} enrolled`
+      : "Empty";
   }
-  backgroundState.textContent = payload.background_ready ? "Set" : "Not set";
-  backendState.textContent = payload.backend || "Unknown";
+  backendState.textContent = backendName;
   thresholdState.textContent = threshold.toFixed(2);
+  renderPatients(payload.patients);
+  configureAuxButton(payload);
 }
 
 async function startCamera() {
@@ -67,7 +105,7 @@ async function startCamera() {
   });
   video.srcObject = stream;
   await video.play();
-  backgroundButton.disabled = false;
+  auxButton.disabled = false;
   enrollButton.disabled = false;
   detectButton.disabled = false;
   setStatus("Camera ready", "idle");
@@ -85,9 +123,72 @@ function resizeOverlay() {
   guide.style.height = `${(crop[3] - crop[1]) * 100}%`;
 }
 
+function bboxFreshness() {
+  if (!lastDetection || !lastDetection.bbox) return 0;
+  const age = performance.now() - lastDetectionAt;
+  if (age < DETECTION_HOLD_MS) return 1;
+  if (age < DETECTION_HOLD_MS + DETECTION_FADE_MS) {
+    return 1 - (age - DETECTION_HOLD_MS) / DETECTION_FADE_MS;
+  }
+  return 0;
+}
+
 function drawOverlay() {
   resizeOverlay();
   overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+
+  const alpha = bboxFreshness();
+  if (alpha > 0 && lastDetection && lastDetection.bbox) {
+    const [nx1, ny1, nx2, ny2] = lastDetection.bbox;
+    const x = nx1 * overlay.width;
+    const y = ny1 * overlay.height;
+    const w = (nx2 - nx1) * overlay.width;
+    const h = (ny2 - ny1) * overlay.height;
+    const color = lastDetection.matched
+      ? "#1a6f5a"
+      : lastDetection.mode === "person" || lastDetection.mode === "face"
+      ? "#c9a227"
+      : "#a13030";
+
+    overlayCtx.save();
+    overlayCtx.globalAlpha = alpha;
+    overlayCtx.lineWidth = 3;
+    overlayCtx.setLineDash([10, 6]);
+    overlayCtx.strokeStyle = color;
+    overlayCtx.strokeRect(x, y, w, h);
+    overlayCtx.setLineDash([]);
+
+    const corner = Math.min(20, w * 0.18, h * 0.18);
+    overlayCtx.lineWidth = 4;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(x, y + corner);
+    overlayCtx.lineTo(x, y);
+    overlayCtx.lineTo(x + corner, y);
+    overlayCtx.moveTo(x + w - corner, y);
+    overlayCtx.lineTo(x + w, y);
+    overlayCtx.lineTo(x + w, y + corner);
+    overlayCtx.moveTo(x + w, y + h - corner);
+    overlayCtx.lineTo(x + w, y + h);
+    overlayCtx.lineTo(x + w - corner, y + h);
+    overlayCtx.moveTo(x + corner, y + h);
+    overlayCtx.lineTo(x, y + h);
+    overlayCtx.lineTo(x, y + h - corner);
+    overlayCtx.stroke();
+
+    const name = lastDetection.matched ? lastDetection.name : "no match";
+    const label = `${name} · ${lastDetection.mode} ${lastDetection.score.toFixed(2)}`;
+    overlayCtx.font = "bold 18px 'Patrick Hand', 'Comic Sans MS', sans-serif";
+    const padX = 8;
+    const textW = overlayCtx.measureText(label).width;
+    const labelH = 24;
+    const labelY = Math.max(0, y - labelH - 4);
+    overlayCtx.fillStyle = color;
+    overlayCtx.fillRect(x, labelY, textW + padX * 2, labelH);
+    overlayCtx.fillStyle = "#fff";
+    overlayCtx.fillText(label, x + padX, labelY + 18);
+    overlayCtx.restore();
+  }
+
   requestAnimationFrame(drawOverlay);
 }
 
@@ -101,38 +202,58 @@ function captureFrame() {
 }
 
 async function setBackground() {
-  backgroundButton.disabled = true;
-  enrollButton.disabled = true;
-  detectButton.disabled = true;
   setStatus("Capturing background", "busy");
   const result = await api("/api/background", { image: captureFrame() });
-  backgroundState.textContent = result.background_ready ? "Set" : "Not set";
   setScore(0);
-  setStatus("Background set", "match");
-  backgroundButton.disabled = false;
+  setStatus(result.background_ready ? "Background set" : "Background failed", result.background_ready ? "match" : "miss");
+  await refreshStatus();
+}
+
+async function clearRegistry() {
+  if (!confirm("Wipe enrolled patients and background?")) return;
+  setStatus("Clearing", "busy");
+  await api("/api/clear");
+  setScore(0);
+  lastDetection = null;
+  setStatus("Cleared", "idle");
+  await refreshStatus();
+}
+
+async function handleAux() {
+  auxButton.disabled = true;
+  enrollButton.disabled = true;
+  detectButton.disabled = true;
+  try {
+    if (auxButton.dataset.mode === "clear") {
+      await clearRegistry();
+    } else {
+      await setBackground();
+    }
+  } catch (error) {
+    setStatus(error.message, "miss");
+  }
+  auxButton.disabled = false;
   enrollButton.disabled = false;
   detectButton.disabled = false;
 }
 
 async function enrollMe() {
+  const rawName = (patientNameInput.value || "").trim();
+  const name = rawName || "Me";
   enrollButton.disabled = true;
   detectButton.disabled = true;
-  setStatus("Enrolling", "busy");
+  setStatus(`Enrolling ${name}`, "busy");
   const samples = [];
   for (let i = 0; i < 8; i += 1) {
     samples.push(captureFrame());
     await new Promise((resolve) => setTimeout(resolve, 180));
   }
-  const result = await api("/api/enroll", {
-    patient_id: "me",
-    name: "Me",
-    samples,
-    crop,
-  });
-  registryState.textContent = `${result.reference_count} samples`;
-  setStatus("Enrolled", "match");
+  const result = await api("/api/enroll", { name, samples, crop });
+  setStatus(`Enrolled ${result.name} (${result.reference_count})`, "match");
+  patientNameInput.value = "";
   enrollButton.disabled = false;
   detectButton.disabled = false;
+  await refreshStatus();
 }
 
 async function detectOnce() {
@@ -141,13 +262,24 @@ async function detectOnce() {
     const result = await api("/api/detect", { image: captureFrame(), crop });
     setScore(result.confidence ?? result.score);
     if (result.needs_enrollment) {
+      lastDetection = null;
       setStatus(result.needs_reenrollment ? "Re-enroll first" : "Enroll first", "idle");
     } else if (!result.person_present) {
       setStatus("No person in guide", "idle");
-    } else if (result.matched) {
-      setStatus(`Detected ${result.patient_name || result.patient_id} · ${result.identity_mode} · ${result.score.toFixed(2)}`, "match");
     } else {
-      setStatus(`Not detected · ${result.identity_mode} · ${result.score.toFixed(2)}`, "miss");
+      lastDetection = {
+        bbox: result.identity_bbox,
+        mode: result.identity_mode,
+        score: result.score,
+        matched: !!result.matched,
+        name: result.patient_name || result.patient_id || "unknown",
+      };
+      lastDetectionAt = performance.now();
+      if (result.matched) {
+        setStatus(`${lastDetection.name} · ${result.identity_mode} ${result.score.toFixed(2)}`, "match");
+      } else {
+        setStatus(`Unknown · ${result.identity_mode} ${result.score.toFixed(2)}`, "miss");
+      }
     }
   } catch (error) {
     setStatus(error.message, "miss");
@@ -156,14 +288,15 @@ async function detectOnce() {
 
 function toggleDetection() {
   detecting = !detecting;
-  detectButton.textContent = detecting ? "Stop Detecting" : "Start Detecting";
+  detectButton.textContent = detecting ? "Stop" : "Detect";
   if (detecting) {
     setStatus("Detecting", "busy");
     detectOnce();
-    detectionTimer = setInterval(detectOnce, 650);
+    detectionTimer = setInterval(detectOnce, 500);
   } else {
     clearInterval(detectionTimer);
     detectionTimer = null;
+    lastDetection = null;
     setStatus("Camera ready", "idle");
   }
 }
@@ -186,19 +319,11 @@ enrollButton.addEventListener("click", () => {
   });
 });
 
-backgroundButton.addEventListener("click", () => {
-  setBackground().catch((error) => {
-    backgroundButton.disabled = false;
-    enrollButton.disabled = false;
-    detectButton.disabled = false;
-    setStatus(error.message, "miss");
-  });
-});
+auxButton.addEventListener("click", handleAux);
 
 detectButton.addEventListener("click", toggleDetection);
 window.addEventListener("resize", resizeOverlay);
 refreshStatus().catch(() => {
   registryState.textContent = "Unavailable";
-  backgroundState.textContent = "Unavailable";
   backendState.textContent = "Unavailable";
 });

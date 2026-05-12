@@ -34,8 +34,14 @@ class LiveVisionBackend:
     def __init__(self) -> None:
         self.embedder = AppearanceEmbedder(size=(96, 96), color_bins=24, use_person_mask=False)
         self.embedding_dimensions = int(self.embedder.from_image(Image.new("RGB", (96, 96))).shape[0])
-        self.backend_name = "opencv-haar-face" if cv2 is not None else "numpy-foreground"
         self._face_detector = self._load_face_detector()
+        self._person_detector = self._load_person_detector()
+        if self._person_detector is not None:
+            self.backend_name = "opencv-hog-person"
+        elif self._face_detector is not None:
+            self.backend_name = "opencv-haar-face"
+        else:
+            self.backend_name = "numpy-foreground"
 
     def extract_identity_crop(
         self,
@@ -44,19 +50,23 @@ class LiveVisionBackend:
         guide_crop: tuple[float, float, float, float],
         require_foreground: bool,
     ) -> IdentityCrop | None:
+        person_crop = self._extract_person_crop_hog(image, guide_crop)
+        if person_crop is not None:
+            return person_crop
+
         face_crop = self._extract_face_crop(image, guide_crop)
         if face_crop is not None:
             return face_crop
 
-        person_crop, person_bbox = extract_person_crop_with_bbox(
+        person_crop_fg, person_bbox = extract_person_crop_with_bbox(
             image,
             background_path,
             guide_crop,
             require_foreground=background_path.exists() and require_foreground,
         )
-        if person_crop is None or person_bbox is None:
+        if person_crop_fg is None or person_bbox is None:
             return None
-        return IdentityCrop(image=person_crop, bbox=person_bbox, mode="foreground")
+        return IdentityCrop(image=person_crop_fg, bbox=person_bbox, mode="foreground")
 
     def embedding_for_crop(self, crop: IdentityCrop) -> np.ndarray:
         return self.embedder.from_image(crop.image)
@@ -69,6 +79,73 @@ class LiveVisionBackend:
         if detector.empty():
             return None
         return detector
+
+    def _load_person_detector(self):
+        if cv2 is None:
+            return None
+        try:
+            hog = cv2.HOGDescriptor()
+            hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+            return hog
+        except Exception:
+            return None
+
+    def _extract_person_crop_hog(
+        self,
+        image: Image.Image,
+        guide_crop: tuple[float, float, float, float],
+    ) -> IdentityCrop | None:
+        if cv2 is None or self._person_detector is None:
+            return None
+
+        width, height = image.size
+        gx1, gy1, gx2, gy2 = normalized_to_box(guide_crop, width, height)
+        roi = image.crop((gx1, gy1, gx2, gy2)).convert("RGB")
+        roi_w, roi_h = roi.size
+        if roi_w < 64 or roi_h < 128:
+            return None
+
+        target_w = 320
+        scale = target_w / roi_w if roi_w > target_w else 1.0
+        if scale != 1.0:
+            scaled = roi.resize((target_w, max(128, int(round(roi_h * scale)))), Image.Resampling.BILINEAR)
+        else:
+            scaled = roi
+        scaled_arr = np.asarray(scaled)
+        bgr = cv2.cvtColor(scaled_arr, cv2.COLOR_RGB2BGR)
+
+        rects, weights = self._person_detector.detectMultiScale(
+            bgr,
+            winStride=(8, 8),
+            padding=(8, 8),
+            scale=1.05,
+        )
+        if len(rects) == 0:
+            return None
+
+        idx = int(np.argmax(weights)) if len(weights) else 0
+        if float(weights[idx]) < 0.35:
+            return None
+        x, y, bw, bh = rects[idx]
+
+        inv = 1.0 / scale if scale != 0 else 1.0
+        x1 = max(0, int(round(x * inv)))
+        y1 = max(0, int(round(y * inv)))
+        x2 = min(roi_w, int(round((x + bw) * inv)))
+        y2 = min(roi_h, int(round((y + bh) * inv)))
+
+        pad_x = max(6, int((x2 - x1) * 0.10))
+        pad_y = max(6, int((y2 - y1) * 0.08))
+        x1 = max(0, x1 - pad_x)
+        y1 = max(0, y1 - pad_y)
+        x2 = min(roi_w, x2 + pad_x)
+        y2 = min(roi_h, y2 + pad_y)
+        if x2 - x1 < 24 or y2 - y1 < 48:
+            return None
+
+        box = (gx1 + x1, gy1 + y1, gx1 + x2, gy1 + y2)
+        normalized = (box[0] / width, box[1] / height, box[2] / width, box[3] / height)
+        return IdentityCrop(image=image.crop(box), bbox=normalized, mode="person")
 
     def _extract_face_crop(
         self,
