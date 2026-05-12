@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Live Patient Detector</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="stage" aria-label="Camera detector">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div id="guide" aria-hidden="true"></div>
+      </section>
+      <aside class="panel">
+        <div>
+          <p class="eyebrow">Local Vision Model</p>
+          <h1>Detect Me</h1>
+        </div>
+        <div class="status" id="status">Camera idle</div>
+        <div class="score">
+          <span>Match</span>
+          <strong id="scoreValue">0.00</strong>
+          <div class="meter"><div id="meterFill"></div></div>
+        </div>
+        <div class="controls">
+          <button id="startButton" type="button">Start Camera</button>
+          <button id="backgroundButton" type="button" disabled>Set Empty Background</button>
+          <button id="enrollButton" type="button" disabled>Enroll Me</button>
+          <button id="detectButton" type="button" disabled>Start Detecting</button>
+        </div>
+        <dl>
+          <div>
+            <dt>Registry</dt>
+            <dd id="registryState">Checking</dd>
+          </div>
+          <div>
+            <dt>Background</dt>
+            <dd id="backgroundState">Checking</dd>
+          </div>
+          <div>
+            <dt>Backend</dt>
+            <dd id="backendState">Checking</dd>
+          </div>
+          <div>
+            <dt>Threshold</dt>
+            <dd id="thresholdState">--</dd>
+          </div>
+        </dl>
+      </aside>
+    </main>
+    <canvas id="captureCanvas" hidden></canvas>
+    <script src="/app.js"></script>
+  </body>
+</html>

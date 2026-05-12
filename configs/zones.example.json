@@ -1,0 +1,16 @@
+{
+  "zones": [
+    {
+      "id": "front_door",
+      "name": "Front door",
+      "type": "restricted",
+      "polygon": [[0.74, 0.0], [1.0, 0.0], [1.0, 1.0], [0.74, 1.0]]
+    },
+    {
+      "id": "stove",
+      "name": "Stove area",
+      "type": "high_risk",
+      "polygon": [[0.0, 0.48], [0.28, 0.48], [0.28, 1.0], [0.0, 1.0]]
+    }
+  ]
+}
