@@ -27,20 +27,21 @@
           <strong id="scoreValue">0.00</strong>
           <div class="meter"><div id="meterFill"></div></div>
         </div>
+        <label class="name-field">
+          <span>Patient name</span>
+          <input id="patientName" type="text" placeholder="e.g. Me" maxlength="40" autocomplete="off" />
+        </label>
         <div class="controls">
-          <button id="startButton" type="button">Start Camera</button>
-          <button id="backgroundButton" type="button" disabled>Set Empty Background</button>
-          <button id="enrollButton" type="button" disabled>Enroll Me</button>
-          <button id="detectButton" type="button" disabled>Start Detecting</button>
+          <button id="startButton" type="button">Camera</button>
+          <button id="auxButton" type="button" disabled data-mode="background">Background</button>
+          <button id="enrollButton" type="button" disabled>Enroll</button>
+          <button id="detectButton" type="button" disabled>Detect</button>
         </div>
+        <ul class="patient-list" id="patientList" aria-label="Enrolled patients"></ul>
         <dl>
           <div>
             <dt>Registry</dt>
             <dd id="registryState">Checking</dd>
-          </div>
-          <div>
-            <dt>Background</dt>
-            <dd id="backgroundState">Checking</dd>
           </div>
           <div>
             <dt>Backend</dt>

@@ -187,6 +187,78 @@ h1 {
   transition: width 160ms ease;
 }
 
+.name-field {
+  display: grid;
+  gap: 6px;
+}
+
+.name-field span {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.name-field input {
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 2.5px dashed var(--ink);
+  border-radius: 12px 6px 14px 8px / 8px 14px 6px 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  transform: rotate(-0.2deg);
+}
+
+.name-field input:focus {
+  outline: none;
+  background: #fff7c8;
+}
+
+.patient-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.patient-list:empty {
+  display: none;
+}
+
+.patient-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 2px dashed var(--ink);
+  border-radius: 10px 14px 8px 12px / 14px 8px 12px 10px;
+  background: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  transform: rotate(-0.15deg);
+}
+
+.patient-list li:nth-child(even) {
+  transform: rotate(0.2deg);
+}
+
+.patient-list li .count {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+button[data-mode="clear"] {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+button[data-mode="clear"]:hover:not(:disabled) {
+  background: #fbeded;
+}
+
 .controls {
   display: grid;
   gap: 12px;
