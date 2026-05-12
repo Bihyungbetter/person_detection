@@ -20,6 +20,10 @@ const detectButton = document.getElementById("detectButton");
 const crop = [0.32, 0.08, 0.68, 0.96];
 const DETECTION_HOLD_MS = 600;
 const DETECTION_FADE_MS = 250;
+const apiOverride = new URLSearchParams(window.location.search).get("api");
+const API_BASE = (apiOverride || "").replace(/\/$/, "");
+const demoBanner = document.getElementById("demoBanner");
+let demoMode = false;
 let threshold = 0.74;
 let stream = null;
 let detecting = false;
@@ -39,8 +43,13 @@ function setScore(score) {
   meterFill.style.width = `${Math.max(0, Math.min(100, safeScore * 100))}%`;
 }
 
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 async function api(path, body) {
-  const response = await fetch(path, {
+  if (demoMode) throw new Error("Demo mode: no backend");
+  const response = await fetch(apiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : "{}",
@@ -50,6 +59,19 @@ async function api(path, body) {
     throw new Error(payload.error || `Request failed: ${response.status}`);
   }
   return payload;
+}
+
+function enterDemoMode() {
+  demoMode = true;
+  if (demoBanner) demoBanner.hidden = false;
+  registryState.textContent = "Unavailable";
+  backendState.textContent = "no backend";
+  thresholdState.textContent = "--";
+  setStatus("Demo mode — no backend reachable", "miss");
+  startButton.disabled = true;
+  auxButton.disabled = true;
+  enrollButton.disabled = true;
+  detectButton.disabled = true;
 }
 
 function renderPatients(patients) {
@@ -81,7 +103,7 @@ function configureAuxButton(payload) {
 }
 
 async function refreshStatus() {
-  const response = await fetch("/api/status");
+  const response = await fetch(apiUrl("/api/status"));
   const payload = await response.json();
   threshold = payload.threshold;
   backendName = payload.backend || "Unknown";
@@ -324,6 +346,5 @@ auxButton.addEventListener("click", handleAux);
 detectButton.addEventListener("click", toggleDetection);
 window.addEventListener("resize", resizeOverlay);
 refreshStatus().catch(() => {
-  registryState.textContent = "Unavailable";
-  backendState.textContent = "Unavailable";
+  enterDemoMode();
 });

@@ -10,6 +10,12 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <div id="demoBanner" class="demo-banner" hidden>
+      <strong>Demo mode</strong>
+      <span>Backend not reachable. Detection needs a local Python server.</span>
+      <code>git clone https://github.com/Bihyungbetter/person_detection &amp;&amp; pip install -e ".[opencv]" &amp;&amp; python scripts/serve_live.py</code>
+      <span>Then reload this page with <code>?api=http://127.0.0.1:8765</code> appended.</span>
+    </div>
     <main class="shell">
       <section class="stage" aria-label="Camera detector">
         <video id="video" autoplay muted playsinline></video>
